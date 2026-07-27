@@ -1,18 +1,22 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import * as migrateMongo from 'migrate-mongo';
-import config from '../../migrate-mongo-config';
 
 @Injectable()
 export class MigrationService implements OnModuleInit {
   private readonly logger = new Logger(MigrationService.name);
 
   async onModuleInit() {
-    migrateMongo.config.set(config);
+    const mm: any = await import('migrate-mongo');
+    const migrateConfig = await mm.config;
+    const database = await mm.database;
+    const up = await mm.up;
 
-    const { db, client } = await migrateMongo.database.connect();
+    const configModule: any = await import('../../migrate-mongo-config');
+    migrateConfig.set(configModule.default || configModule);
+
+    const { db, client } = await database.connect();
 
     try {
-      const migrated = await migrateMongo.up(db, client);
+      const migrated = await up(db, client);
 
       if (migrated.length === 0) {
         this.logger.log('No pending migrations');
