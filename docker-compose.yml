@@ -1,0 +1,90 @@
+services:
+  mongodb:
+    image: mongo:7.0.8
+    container_name: lumana_mongodb
+    restart: always
+    env_file:
+      - .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+    ports:
+      - "${MONGO_PORT}:${MONGO_PORT}"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis/redis-stack-server:7.2.0-v13
+    container_name: lumana_redis
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  service-a:
+    build:
+      context: ./backend/services/service-a
+      dockerfile: Dockerfile
+    container_name: lumana_service_a
+    restart: always
+    env_file:
+      - .env
+    environment:
+      PORT: ${SERVICE_A_PORT}
+      GRPC_PORT: ${SERVICE_A_GRPC_PORT}
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB_NAME: ${SERVICE_A_MONGO_DB_NAME}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      SERVICE_B_GRPC_HOST: service-b
+      SERVICE_B_GRPC_PORT: ${SERVICE_B_GRPC_PORT}
+    ports:
+      - "${SERVICE_A_PORT}:${SERVICE_A_PORT}"
+      - "${SERVICE_A_GRPC_PORT}:${SERVICE_A_GRPC_PORT}"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  service-b:
+    build:
+      context: ./backend/services/service-b
+      dockerfile: Dockerfile
+    container_name: lumana_service_b
+    restart: always
+    env_file:
+      - .env
+    environment:
+      PORT: ${SERVICE_B_PORT}
+      GRPC_PORT: ${SERVICE_B_GRPC_PORT}
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB_NAME: ${SERVICE_B_MONGO_DB_NAME}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+    ports:
+      - "${SERVICE_B_PORT}:${SERVICE_B_PORT}"
+      - "${SERVICE_B_GRPC_PORT}:${SERVICE_B_GRPC_PORT}"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  mongo_data:
+  redis_data:

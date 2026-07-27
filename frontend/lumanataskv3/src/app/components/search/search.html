@@ -1,0 +1,94 @@
+<div class="search-container">
+  <div class="search-input-wrapper">
+    <input
+      type="text"
+      [formControl]="searchControl"
+      placeholder="Search products..."
+      class="search-input"
+      [class.loading]="loading()"
+      aria-label="Search products"
+    />
+    @if (loading()) {
+      <div class="loading-spinner" aria-hidden="true"></div>
+    }
+    @if (searchControl.value) {
+      <button
+        (click)="clearSearch()"
+        class="clear-button"
+        aria-label="Clear search"
+      >
+        ✕
+      </button>
+    }
+  </div>
+
+  @if (error()) {
+    <div class="error-message" role="alert">
+      {{ error() }}
+    </div>
+  }
+
+  @if (showSuggestions() && filteredSuggestions().length > 0) {
+    <div class="suggestions-dropdown">
+      <div class="suggestions-header">Recent searches</div>
+      @for (suggestion of filteredSuggestions(); track suggestion) {
+        <div
+          (click)="selectSuggestion(suggestion)"
+          class="suggestion-item"
+          role="option"
+          tabindex="0"
+        >
+          {{ suggestion }}
+        </div>
+      }
+    </div>
+  }
+
+  @if (searchResults().length > 0) {
+    <div class="results-info">
+      <span class="results-count">{{ searchResults().length }} of {{ totalResults() }} results</span>
+      @if (hasMore()) {
+        <button (click)="loadMore()" class="load-more-button" [disabled]="loading()">
+          @if (loading()) {
+            <span>Loading...</span>
+          } @else {
+            <span>Load More</span>
+          }
+        </button>
+      }
+    </div>
+    
+    <div class="results-list">
+      @for (result of searchResults(); track result.id) {
+        <div
+          (click)="selectResult(result)"
+          class="result-item"
+          role="button"
+          tabindex="0"
+        >
+          <img
+            [src]="result.thumbnail"
+            [alt]="result.title"
+            class="result-thumbnail"
+            loading="lazy"
+          />
+          <div class="result-info">
+            <h3 class="result-title">{{ result.title }}</h3>
+            <p class="result-description">{{ result.description }}</p>
+            <div class="result-meta">
+              <span class="result-price">${{ result.price }}</span>
+              <span class="result-rating">★ {{ result.rating }}</span>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (showDialog() && selectedResult()) {
+    <app-image-dialog
+      [result]="selectedResult()!"
+      (close)="closeDialog()"
+    />
+  }
+</div>

@@ -1,0 +1,73 @@
+<div class="dialog-container">
+  <div class="dialog-header">
+    <h2 class="dialog-title">{{ result()?.title }}</h2>
+    <button (click)="closeDialog()" class="close-button" aria-label="Close dialog">
+      ✕
+    </button>
+  </div>
+
+  <div class="dialog-content">
+    @if (!imageLoaded()) {
+      <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <p>Loading image...</p>
+      </div>
+    } @else {
+      <div class="canvas-container">
+        <canvas
+          #canvas
+          (click)="onCanvasClick($event)"
+          (dblclick)="onCanvasDoubleClick($event)"
+          (mousedown)="onCanvasMouseDown($event)"
+          (mousemove)="onCanvasMouseMove($event)"
+          (mouseup)="onCanvasMouseUp()"
+          class="image-canvas"
+        ></canvas>
+      </div>
+
+      <div class="controls">
+        <div class="mode-toggle">
+          <button
+            (click)="toggleDrawMode()"
+            [class.active]="isDrawMode()"
+            class="mode-button"
+            aria-label="Toggle draw mode"
+          >
+            @if (isDrawMode()) {
+              <span>✏️ Draw Mode</span>
+            } @else {
+              <span>👆 Select Mode</span>
+            }
+          </button>
+        </div>
+
+        @if (!isDrawMode() && selectedPolygon()) {
+          <div class="polygon-controls">
+            <button
+              (click)="rotateSelectedPolygon()"
+              class="control-button"
+              aria-label="Rotate polygon"
+            >
+              🔄 Rotate
+            </button>
+            <button
+              (click)="deleteSelectedPolygon()"
+              class="control-button delete"
+              aria-label="Delete polygon"
+            >
+              🗑️ Delete
+            </button>
+          </div>
+        }
+
+        <div class="instructions">
+          @if (isDrawMode()) {
+            <p>Click to add points, double-click to complete polygon</p>
+          } @else {
+            <p>Click on a polygon to select it, drag to move</p>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>

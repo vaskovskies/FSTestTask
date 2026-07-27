@@ -1,0 +1,240 @@
+{
+    "schemes": [
+        "http"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "Go microservice for log aggregation, querying, and PDF report generation.",
+        "title": "Service B - Log Aggregation API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api",
+    "paths": {
+        "/health": {
+            "get": {
+                "description": "Returns the health status of the service",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/logs": {
+            "get": {
+                "description": "Retrieve logs with optional filtering by service, action, level, and date range, with pagination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Query logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by action name",
+                        "name": "action",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by service name",
+                        "name": "service",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "debug",
+                            "info",
+                            "warn",
+                            "error"
+                        ],
+                        "type": "string",
+                        "description": "Filter by log level",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "2024-01-01T00:00:00Z",
+                        "description": "Start date in RFC3339 format",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "2024-12-31T23:59:59Z",
+                        "description": "End date in RFC3339 format",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpmodel.GetLogsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/pdf": {
+            "get": {
+                "description": "Generate a PDF report from Redis TimeSeries data for a given metric and time range",
+                "produces": [
+                    "application/pdf"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Generate PDF report",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "ts:search_queries",
+                        "description": "Redis TimeSeries metric key",
+                        "name": "metric",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Start timestamp in milliseconds (defaults to 24h ago)",
+                        "name": "start",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "End timestamp in milliseconds (defaults to now)",
+                        "name": "end",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "httpmodel.GetLogsResponse": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "logs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/httpmodel.LogEntry"
+                    }
+                },
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 42
+                }
+            }
+        },
+        "httpmodel.LogEntry": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "example": "product.search"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "665f1a2e3a1b2c3d4e5f6a7b"
+                },
+                "level": {
+                    "type": "string",
+                    "example": "info"
+                },
+                "payload": {
+                    "type": "string",
+                    "example": "{\"query\":\"laptop\"}"
+                },
+                "service": {
+                    "type": "string",
+                    "example": "service-a"
+                },
+                "timestamp": {
+                    "type": "integer",
+                    "example": 1716300000000
+                }
+            }
+        }
+    }
+}

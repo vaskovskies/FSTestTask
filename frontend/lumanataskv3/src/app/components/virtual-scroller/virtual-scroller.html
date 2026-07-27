@@ -1,0 +1,25 @@
+<cdk-virtual-scroll-viewport itemSize [itemSize]="itemHeight()" class="viewport" #viewport>
+  <div
+    *cdkVirtualFor="let item of items(); trackBy: trackByFn; index as i"
+    [attr.data-index]="i"
+    class="list-item"
+    (click)="onSelect(item)"
+    role="button"
+    tabindex="0"
+  >
+    <img
+      [src]="item.thumbnail"
+      [alt]="item.title"
+      class="item-thumbnail"
+      loading="lazy"
+    />
+    <div class="item-info">
+      <h3 class="item-title">{{ item.title }}</h3>
+      <p class="item-description">{{ item.description }}</p>
+      <div class="item-meta">
+        <span class="item-price">${{ item.price }}</span>
+        <span class="item-rating">★ {{ item.rating }}</span>
+      </div>
+    </div>
+  </div>
+</cdk-virtual-scroll-viewport>

@@ -1,0 +1,166 @@
+basePath: /api
+definitions:
+  httpmodel.GetLogsResponse:
+    properties:
+      limit:
+        example: 10
+        type: integer
+      logs:
+        items:
+          $ref: '#/definitions/httpmodel.LogEntry'
+        type: array
+      page:
+        example: 1
+        type: integer
+      total:
+        example: 42
+        type: integer
+    type: object
+  httpmodel.LogEntry:
+    properties:
+      action:
+        example: product.search
+        type: string
+      id:
+        example: 665f1a2e3a1b2c3d4e5f6a7b
+        type: string
+      level:
+        example: info
+        type: string
+      payload:
+        example: '{"query":"laptop"}'
+        type: string
+      service:
+        example: service-a
+        type: string
+      timestamp:
+        example: 1716300000000
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Go microservice for log aggregation, querying, and PDF report generation.
+  title: Service B - Log Aggregation API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      description: Returns the health status of the service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Health check
+      tags:
+      - health
+  /logs:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve logs with optional filtering by service, action, level,
+        and date range, with pagination
+      parameters:
+      - description: Filter by action name
+        in: query
+        name: action
+        type: string
+      - description: Filter by service name
+        in: query
+        name: service
+        type: string
+      - description: Filter by log level
+        enum:
+        - debug
+        - info
+        - warn
+        - error
+        in: query
+        name: level
+        type: string
+      - description: Start date in RFC3339 format
+        example: "2024-01-01T00:00:00Z"
+        in: query
+        name: start_date
+        type: string
+      - description: End date in RFC3339 format
+        example: "2024-12-31T23:59:59Z"
+        in: query
+        name: end_date
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpmodel.GetLogsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Query logs
+      tags:
+      - logs
+  /reports/pdf:
+    get:
+      description: Generate a PDF report from Redis TimeSeries data for a given metric
+        and time range
+      parameters:
+      - default: ts:search_queries
+        description: Redis TimeSeries metric key
+        in: query
+        name: metric
+        type: string
+      - description: Start timestamp in milliseconds (defaults to 24h ago)
+        format: int64
+        in: query
+        name: start
+        type: integer
+      - description: End timestamp in milliseconds (defaults to now)
+        format: int64
+        in: query
+        name: end
+        type: integer
+      produces:
+      - application/pdf
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Generate PDF report
+      tags:
+      - reports
+schemes:
+- http
+swagger: "2.0"
