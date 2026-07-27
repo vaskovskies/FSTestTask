@@ -23,6 +23,22 @@ export class ProductsController {
   @Post('upload-and-import')
   @ApiOperation({ summary: 'Upload & parse JSON/Excel file, then insert/upsert into Mongo robustly (Bonus 2)' })
   @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    required: true,
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+        format: {
+          type: 'string',
+          enum: ['json', 'excel'],
+        },
+      },
+    },
+  })
   @UseInterceptors(FileInterceptor('file'))
   async uploadAndImport(
     @UploadedFile() file: Express.Multer.File,
