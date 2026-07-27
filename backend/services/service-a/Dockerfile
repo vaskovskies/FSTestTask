@@ -17,6 +17,8 @@ RUN npm install --only=production
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
+COPY migrate-mongo-config.js ./
+COPY migrations ./migrations
 
 EXPOSE 3000 50051
 
