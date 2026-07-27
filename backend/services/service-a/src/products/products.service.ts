@@ -2,28 +2,21 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ProductsRepository, ProductDocument } from './products.repository';
 import { RedisTimeSeriesService } from '../redis/redis-timeseries.service';
 import { SearchProductDto } from './dto/search-product.dto';
-import * as fs from 'fs';
-import * as path from 'path';
 import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class ProductsService {
   private readonly logger = new Logger(ProductsService.name);
-  private readonly dataDir = path.join(process.cwd(), 'data');
 
   constructor(
     private readonly productsRepository: ProductsRepository,
     private readonly redisTimeSeriesService: RedisTimeSeriesService,
-  ) {
-    if (!fs.existsSync(this.dataDir)) {
-      fs.mkdirSync(this.dataDir, { recursive: true });
-    }
-  }
+  ) {}
 
   /**
-   * Bonus 1: Fetch large dataset from dummyjson.com and save to file (JSON or Excel) via code
+   * Bonus 1: Fetch large dataset from dummyjson.com and return as downloadable buffer (JSON or Excel)
    */
-  async fetchAndSaveData(format: 'json' | 'excel' = 'json'): Promise<{ filePath: string; count: number }> {
+  async fetchAndGenerateData(format: 'json' | 'excel' = 'json'): Promise<{ buffer: Buffer; fileName: string; mimeType: string }> {
     const startTime = Date.now();
     this.logger.log(`Fetching product data from dummyjson.com API...`);
 
@@ -36,10 +29,13 @@ export class ProductsService {
     const products = data.products || [];
 
     const fileName = `products_export_${Date.now()}.${format === 'excel' ? 'xlsx' : 'json'}`;
-    const filePath = path.join(this.dataDir, fileName);
+
+    let buffer: Buffer;
+    let mimeType: string;
 
     if (format === 'json') {
-      fs.writeFileSync(filePath, JSON.stringify(products, null, 2), 'utf-8');
+      buffer = Buffer.from(JSON.stringify(products, null, 2), 'utf-8');
+      mimeType = 'application/json';
     } else {
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Products');
@@ -68,7 +64,8 @@ export class ProductsService {
         });
       });
 
-      await workbook.xlsx.writeFile(filePath);
+      buffer = await workbook.xlsx.writeBuffer() as unknown as Buffer;
+      mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     }
 
     const duration = Date.now() - startTime;
@@ -77,33 +74,28 @@ export class ProductsService {
       format,
       count: products.length,
       durationMs: duration,
-      filePath,
     });
 
-    return { filePath, count: products.length };
+    return { buffer, fileName, mimeType };
   }
 
   /**
-   * Bonus 2: Read file (JSON/Excel), parse, and insert into MongoDB robustly
+   * Bonus 2: Parse uploaded JSON/Excel buffer and insert into MongoDB robustly
    */
-  async uploadAndImportFile(filePath: string, format: 'json' | 'excel'): Promise<{ insertedOrUpdated: number }> {
+  async uploadAndImportFile(fileBuffer: Buffer, format: 'json' | 'excel'): Promise<{ insertedOrUpdated: number }> {
     const startTime = Date.now();
-    if (!fs.existsSync(filePath)) {
-      throw new BadRequestException(`File not found at path: ${filePath}`);
-    }
 
     let rawProducts: any[] = [];
 
     if (format === 'json') {
-      const fileContent = fs.readFileSync(filePath, 'utf-8');
-      rawProducts = JSON.parse(fileContent);
+      rawProducts = JSON.parse(fileBuffer.toString('utf-8'));
     } else {
       const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.readFile(filePath);
+      await workbook.xlsx.load(fileBuffer as any);
       const worksheet = workbook.getWorksheet('Products') || workbook.worksheets[0];
 
       worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber === 1) return; // Skip header row
+        if (rowNumber === 1) return;
         const values: any = row.values;
         rawProducts.push({
           id: Number(values[1]),
