@@ -1,4 +1,4 @@
-import { Component, inject, input, output, signal, ViewChild, ElementRef, AfterViewInit, afterNextRender, ChangeDetectionStrategy, HostListener } from '@angular/core';
+import { Component, inject, input, output, signal, ViewChild, ElementRef, AfterViewInit, ChangeDetectionStrategy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SearchResult } from '../../services/api/api';
 import { Store } from '@ngrx/store';
@@ -54,7 +54,7 @@ export class ImageDialogComponent implements AfterViewInit {
     this.image.onload = () => {
       this.originalImageSize.set({ width: this.image.width, height: this.image.height });
       this.imageLoaded.set(true);
-      afterNextRender(() => this.resizeCanvas());
+      setTimeout(() => this.resizeCanvas());
       this.loadPolygons();
     };
     this.image.src = imageUrl;
