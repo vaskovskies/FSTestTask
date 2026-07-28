@@ -52,7 +52,8 @@ func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, key str
 	}
 
 	// 1. Fetch RedisTimeSeries range data: TS.RANGE key startTs endTs
-	res, err := s.rdb.Do(ctx, "TS.RANGE", key, startTs, endTs).Result()
+	// 3600000 ms = 1 Hour. This groups all the 1s in that hour into a single spiked value.
+	res, err := s.rdb.Do(ctx, "TS.RANGE", key, startTs, endTs, "AGGREGATION", "SUM", 3600000).Result()
 	var xValues []time.Time
 	var yValues []float64
 
