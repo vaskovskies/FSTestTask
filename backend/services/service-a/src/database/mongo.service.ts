@@ -32,4 +32,14 @@ export class MongoService implements OnModuleInit, OnModuleDestroy {
   getDb(): Db {
     return this.db;
   }
+
+  async ping(): Promise<boolean> {
+    if (!this.db) return false;
+    try {
+      await this.db.admin().ping();
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }

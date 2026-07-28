@@ -24,6 +24,20 @@ export class RedisTimeSeriesService implements OnModuleInit, OnModuleDestroy {
     this.client.on('error', (err) => this.logger.error('Redis error:', err));
   }
 
+  getClient(): Redis {
+    return this.client;
+  }
+
+  async ping(): Promise<boolean> {
+    if (!this.client) return false;
+    try {
+      const result = await this.client.ping();
+      return result === 'PONG';
+    } catch {
+      return false;
+    }
+  }
+
   async onModuleDestroy() {
     if (this.client) {
       this.logger.log('Closing Redis connection...');

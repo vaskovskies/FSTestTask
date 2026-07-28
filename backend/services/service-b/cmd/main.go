@@ -97,7 +97,7 @@ func main() {
 	// 7. Setup HTTP REST Server (Gin)
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
-	httpHandler := handler.NewHTTPHandler(logService, reportService)
+	httpHandler := handler.NewHTTPHandler(logService, reportService, mongoClient, rdb)
 	httpHandler.RegisterRoutes(router)
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

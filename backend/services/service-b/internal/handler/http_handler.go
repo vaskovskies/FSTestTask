@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"time"
@@ -9,17 +10,23 @@ import (
 	"backend/services/service-b/internal/entity/httpmodel"
 	"backend/services/service-b/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type HTTPHandler struct {
 	logService    service.LogService
 	reportService service.ReportService
+	mongoClient   *mongo.Client
+	redisClient   *redis.Client
 }
 
-func NewHTTPHandler(logService service.LogService, reportService service.ReportService) *HTTPHandler {
+func NewHTTPHandler(logService service.LogService, reportService service.ReportService, mongoClient *mongo.Client, redisClient *redis.Client) *HTTPHandler {
 	return &HTTPHandler{
 		logService:    logService,
 		reportService: reportService,
+		mongoClient:   mongoClient,
+		redisClient:   redisClient,
 	}
 }
 
@@ -33,14 +40,41 @@ func (h *HTTPHandler) RegisterRoutes(r *gin.Engine) {
 }
 
 // HealthCheck godoc
-// @Summary      Health check
-// @Description  Returns the health status of the service
+// @Summary      Deep health check
+// @Description  Returns the health status of the service with Mongo and Redis dependency pings
 // @Tags         health
 // @Produce      json
-// @Success      200  {object}  map[string]string
+// @Success      200  {object}  map[string]interface{}
+// @Failure      503  {object}  map[string]interface{}
 // @Router       /health [get]
 func (h *HTTPHandler) HealthCheck(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "Service-B (Go)"})
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+	defer cancel()
+
+	mongoUp := true
+	if err := h.mongoClient.Ping(ctx, nil); err != nil {
+		mongoUp = false
+	}
+
+	redisUp := true
+	if err := h.redisClient.Ping(ctx).Err(); err != nil {
+		redisUp = false
+	}
+
+	status := gin.H{
+		"status":  "ok",
+		"service": "Service-B (Go)",
+		"mongo":   mongoUp,
+		"redis":   redisUp,
+	}
+
+	if !mongoUp || !redisUp {
+		status["status"] = "degraded"
+		c.JSON(http.StatusServiceUnavailable, status)
+		return
+	}
+
+	c.JSON(http.StatusOK, status)
 }
 
 // GetLogs godoc
