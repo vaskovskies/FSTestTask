@@ -100,7 +100,7 @@ func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, key str
 			Style: chart.Style{
 				Hidden: false,
 			},
-			ValueFormatter: chart.TimeValueFormatter,
+			ValueFormatter: chart.TimeHourValueFormatter,
 		},
 		YAxis: chart.YAxis{
 			Name: "Value / Count",
