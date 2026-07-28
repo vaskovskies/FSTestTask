@@ -2,10 +2,20 @@ package config
 
 import (
 	"log"
+	"net/url"
 	"strings"
 
 	"github.com/spf13/viper"
 )
+
+func RedactMongoURI(rawURI string) string {
+	u, err := url.Parse(rawURI)
+	if err != nil || u.User == nil {
+		return "invalid_uri"
+	}
+	u.User = url.UserPassword(u.User.Username(), "*****")
+	return u.String()
+}
 
 type Config struct {
 	Port           string `mapstructure:"PORT"`
@@ -46,6 +56,6 @@ func InitConfig() *Config {
 	}
 
 	Cfg = &c
-	log.Printf("[Config] Service B Configuration initialized (Port: %s, GRPCPort: %s, MongoURI: %s)\n", Cfg.Port, Cfg.GRPCPort, Cfg.MongoURI)
+	log.Printf("[Config] Service B Configuration initialized (Port: %s, GRPCPort: %s, MongoURI: %s)\n", Cfg.Port, Cfg.GRPCPort, RedactMongoURI(Cfg.MongoURI))
 	return Cfg
 }

@@ -20,12 +20,12 @@ import (
 	_ "backend/services/service-b/docs"
 
 	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/mongodb"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/redis/go-redis/v9"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
@@ -48,7 +48,7 @@ func main() {
 	defer cancel()
 
 	// 2. Database Connections
-	log.Printf("[Go Service B] Connecting to MongoDB at %s...\n", cfg.MongoURI)
+	log.Printf("[Go Service B] Connecting to MongoDB at %s...\n", config.RedactMongoURI(cfg.MongoURI))
 	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoURI))
 	if err != nil {
 		log.Fatalf("MongoDB connection failed: %v", err)
