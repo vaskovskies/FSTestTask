@@ -39,7 +39,27 @@ export class ProductsController {
       },
     },
   })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const allowedMimes = [
+          'application/json',
+          'text/plain',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ];
+        if (!allowedMimes.includes(file.mimetype)) {
+          return cb(
+            new BadRequestException(
+              `Unsupported file type ${file.mimetype}. Allowed: JSON, Excel (.xlsx)`,
+            ),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+    }),
+  )
   async uploadAndImport(
     @UploadedFile() file: Express.Multer.File,
     @Body('format') format?: 'json' | 'excel',

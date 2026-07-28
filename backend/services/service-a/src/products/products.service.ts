@@ -88,7 +88,14 @@ export class ProductsService {
     let rawProducts: any[] = [];
 
     if (format === 'json') {
-      rawProducts = JSON.parse(fileBuffer.toString('utf-8'));
+      try {
+        rawProducts = JSON.parse(fileBuffer.toString('utf-8'));
+      } catch {
+        throw new BadRequestException('Invalid JSON file');
+      }
+      if (!Array.isArray(rawProducts)) {
+        throw new BadRequestException('JSON file must contain an array of products');
+      }
     } else {
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(fileBuffer as any);
