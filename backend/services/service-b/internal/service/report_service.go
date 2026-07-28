@@ -24,6 +24,7 @@ import (
 	"github.com/johnfercher/maroto/v2/pkg/props"
 	"github.com/redis/go-redis/v9"
 	"github.com/wcharczuk/go-chart/v2"
+	"github.com/wcharczuk/go-chart/v2/drawing"
 )
 
 type ReportService interface {
@@ -58,8 +59,20 @@ func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, key str
 		if rawSlice, ok := res.([]interface{}); ok {
 			for _, item := range rawSlice {
 				if tuple, ok := item.([]interface{}); ok && len(tuple) == 2 {
+					// Time Parsing
 					tsVal, _ := tuple[0].(int64)
-					valStr := fmt.Sprintf("%v", tuple[1])
+
+					// Safely parse the value whether Redis returns a string, []byte, or float
+					var valStr string
+					switch v := tuple[1].(type) {
+					case string:
+						valStr = v
+					case []byte:
+						valStr = string(v)
+					default:
+						valStr = fmt.Sprintf("%v", v)
+					}
+
 					valFloat, _ := strconv.ParseFloat(valStr, 64)
 
 					xValues = append(xValues, time.UnixMilli(tsVal))
@@ -83,15 +96,32 @@ func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, key str
 		Height: 300,
 		XAxis: chart.XAxis{
 			Name: "Time",
+			Style: chart.Style{
+				Hidden: false, // EXPLICITLY SHOW THE AXIS
+			},
+			ValueFormatter: chart.TimeValueFormatter, // FORMAT TICKS AS TIME
 		},
 		YAxis: chart.YAxis{
 			Name: "Value / Count",
+			Style: chart.Style{
+				Hidden: false, // EXPLICITLY SHOW THE AXIS
+			},
 		},
 		Series: []chart.Series{
 			chart.TimeSeries{
 				Name:    key,
 				XValues: xValues,
 				YValues: yValues,
+				Style: chart.Style{
+					Hidden:      false,
+					StrokeWidth: 2.0,
+					// FIX: Give the line a color so it isn't transparent!
+					StrokeColor: drawing.ColorBlue,
+
+					// FIX: Force go-chart to draw dots for your datapoints
+					DotWidth: 4.0,
+					DotColor: drawing.ColorBlack,
+				},
 			},
 		},
 	}
