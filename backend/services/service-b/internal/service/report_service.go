@@ -21,6 +21,7 @@ import (
 	"github.com/johnfercher/maroto/v2/pkg/consts/align"
 	"github.com/johnfercher/maroto/v2/pkg/consts/extension"
 	"github.com/johnfercher/maroto/v2/pkg/consts/fontstyle"
+	"github.com/johnfercher/maroto/v2/pkg/core"
 	"github.com/johnfercher/maroto/v2/pkg/props"
 	"github.com/redis/go-redis/v9"
 	"github.com/wcharczuk/go-chart/v2"
@@ -82,11 +83,10 @@ func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, key str
 		}
 	}
 
-	// Fallback sample data points for chart rendering if time series is empty
-	if len(xValues) == 0 {
-		now := time.Now()
-		xValues = []time.Time{now.Add(-4 * time.Hour), now.Add(-3 * time.Hour), now.Add(-2 * time.Hour), now.Add(-1 * time.Hour), now}
-		yValues = []float64{12, 45, 89, 34, 110}
+	filename := fmt.Sprintf("report_%s_%d.pdf", key, time.Now().Unix())
+
+	if len(xValues) < 2 {
+		return s.buildNoDataPDF(key, filename), filename, nil
 	}
 
 	// 2. Generate Chart PNG image using go-chart
@@ -97,14 +97,14 @@ func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, key str
 		XAxis: chart.XAxis{
 			Name: "Time",
 			Style: chart.Style{
-				Hidden: false, // EXPLICITLY SHOW THE AXIS
+				Hidden: false,
 			},
-			ValueFormatter: chart.TimeValueFormatter, // FORMAT TICKS AS TIME
+			ValueFormatter: chart.TimeValueFormatter,
 		},
 		YAxis: chart.YAxis{
 			Name: "Value / Count",
 			Style: chart.Style{
-				Hidden: false, // EXPLICITLY SHOW THE AXIS
+				Hidden: false,
 			},
 		},
 		Series: []chart.Series{
@@ -115,12 +115,9 @@ func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, key str
 				Style: chart.Style{
 					Hidden:      false,
 					StrokeWidth: 2.0,
-					// FIX: Give the line a color so it isn't transparent!
 					StrokeColor: drawing.ColorBlue,
-
-					// FIX: Force go-chart to draw dots for your datapoints
-					DotWidth: 4.0,
-					DotColor: drawing.ColorBlack,
+					DotWidth:    4.0,
+					DotColor:    drawing.ColorBlack,
 				},
 			},
 		},
@@ -131,17 +128,9 @@ func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, key str
 		return nil, "", fmt.Errorf("chart rendering failed: %w", err)
 	}
 
-	// Validate PNG bytes; fall back to a placeholder if corrupt
 	if _, err := png.Decode(bytes.NewReader(chartBuffer.Bytes())); err != nil {
-		placeholder := stdimage.NewRGBA(stdimage.Rect(0, 0, 600, 300))
-		bg := color.RGBA{250, 235, 215, 255}
-		for x := 0; x < 600; x++ {
-			for y := 0; y < 300; y++ {
-				placeholder.Set(x, y, bg)
-			}
-		}
 		chartBuffer.Reset()
-		if err := png.Encode(&chartBuffer, placeholder); err != nil {
+		if err := png.Encode(&chartBuffer, s.placeholderImage()); err != nil {
 			return nil, "", fmt.Errorf("fallback chart image encoding failed: %w", err)
 		}
 	}
@@ -149,7 +138,60 @@ func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, key str
 	cfg := config.NewBuilder().Build()
 	m := maroto.New(cfg)
 
-	// Header
+	s.addHeader(m, key)
+	s.addSummaryRow(m, len(yValues), key)
+
+	m.AddRows(
+		row.New(100).Add(
+			col.New(12).Add(
+				image.NewFromBytes(chartBuffer.Bytes(), extension.Png, props.Rect{
+					Center:  true,
+					Percent: 95,
+				}),
+			),
+		),
+	)
+
+	s.addFooter(m)
+
+	pdfDoc, err := m.Generate()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to generate pdf: %w", err)
+	}
+
+	return pdfDoc.GetBytes(), filename, nil
+}
+
+func (s *reportService) buildNoDataPDF(key, filename string) []byte {
+	cfg := config.NewBuilder().Build()
+	m := maroto.New(cfg)
+
+	s.addHeader(m, key)
+	s.addSummaryRow(m, 0, key)
+
+	m.AddRows(
+		row.New(60).Add(
+			col.New(12).Add(
+				text.New("No Data Available", props.Text{
+					Size:  16,
+					Style: fontstyle.BoldItalic,
+					Align: align.Center,
+					Color: &props.Color{Red: 180, Green: 180, Blue: 180},
+				}),
+			),
+		),
+	)
+
+	s.addFooter(m)
+
+	pdfDoc, err := m.Generate()
+	if err != nil {
+		return nil
+	}
+	return pdfDoc.GetBytes()
+}
+
+func (s *reportService) addHeader(m core.Maroto, key string) {
 	m.AddRows(
 		row.New(25).Add(
 			col.New(12).Add(
@@ -170,12 +212,13 @@ func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, key str
 		),
 		line.NewRow(2, props.Line{Thickness: 1}),
 	)
+}
 
-	// Summary Cards Section
+func (s *reportService) addSummaryRow(m core.Maroto, sampleCount int, key string) {
 	m.AddRows(
 		row.New(15).Add(
 			col.New(4).Add(
-				text.New(fmt.Sprintf("Total Samples: %d", len(yValues)), props.Text{Size: 11, Style: fontstyle.Bold}),
+				text.New(fmt.Sprintf("Total Samples: %d", sampleCount), props.Text{Size: 11, Style: fontstyle.Bold}),
 			),
 			col.New(4).Add(
 				text.New(fmt.Sprintf("Metric Target: %s", key), props.Text{Size: 11, Style: fontstyle.Bold}),
@@ -185,20 +228,9 @@ func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, key str
 			),
 		),
 	)
+}
 
-	// Chart Image Embedding
-	m.AddRows(
-		row.New(100).Add(
-			col.New(12).Add(
-				image.NewFromBytes(chartBuffer.Bytes(), extension.Png, props.Rect{
-					Center:  true,
-					Percent: 95,
-				}),
-			),
-		),
-	)
-
-	// Footer / Verification QR code
+func (s *reportService) addFooter(m core.Maroto) {
 	m.AddRows(
 		line.NewRow(2, props.Line{Thickness: 0.5}),
 		row.New(20).Add(
@@ -210,12 +242,15 @@ func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, key str
 			),
 		),
 	)
+}
 
-	pdfDoc, err := m.Generate()
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to generate pdf: %w", err)
+func (s *reportService) placeholderImage() *stdimage.RGBA {
+	img := stdimage.NewRGBA(stdimage.Rect(0, 0, 600, 300))
+	bg := color.RGBA{250, 235, 215, 255}
+	for x := 0; x < 600; x++ {
+		for y := 0; y < 300; y++ {
+			img.Set(x, y, bg)
+		}
 	}
-
-	filename := fmt.Sprintf("report_%s_%d.pdf", key, time.Now().Unix())
-	return pdfDoc.GetBytes(), filename, nil
+	return img
 }
