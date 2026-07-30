@@ -19,6 +19,7 @@ import (
 
 	_ "backend/services/service-b/docs"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/mongodb"
@@ -97,6 +98,7 @@ func main() {
 	// 7. Setup HTTP REST Server (Gin)
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
+	router.Use(cors.Default())
 	httpHandler := handler.NewHTTPHandler(logService, reportService, mongoClient, rdb)
 	httpHandler.RegisterRoutes(router)
 

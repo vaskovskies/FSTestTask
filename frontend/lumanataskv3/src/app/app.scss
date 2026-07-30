@@ -17,17 +17,39 @@
 }
 
 .app-title {
-  margin: 0 0 8px 0;
+  margin: 0 0 16px 0;
   font-size: 32px;
   font-weight: 700;
   letter-spacing: -0.5px;
 }
 
-.app-subtitle {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 400;
-  opacity: 0.9;
+.app-nav {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.nav-link {
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+  }
+
+  &.active {
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.4);
+  }
 }
 
 .app-main {

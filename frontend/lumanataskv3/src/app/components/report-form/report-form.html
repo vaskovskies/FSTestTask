@@ -1,0 +1,53 @@
+<div class="report-form-container">
+  <h2 class="report-form-title">Generate PDF Report</h2>
+  <p class="report-form-subtitle">Select a time range to generate a report from search query metrics.</p>
+
+  <form [formGroup]="reportForm" (ngSubmit)="submit()" class="report-form">
+    <div class="form-field">
+      <label for="start" class="form-label">Start Time</label>
+      <input
+        id="start"
+        type="datetime-local"
+        formControlName="start"
+        class="form-input"
+        aria-label="Start time"
+      />
+    </div>
+
+    <div class="form-field">
+      <label for="end" class="form-label">End Time</label>
+      <input
+        id="end"
+        type="datetime-local"
+        formControlName="end"
+        class="form-input"
+        aria-label="End time"
+      />
+    </div>
+
+    @if (error()) {
+      <div class="error-message" role="alert">
+        {{ error() }}
+      </div>
+    }
+
+    @if (success()) {
+      <div class="success-message" role="status">
+        Report downloaded successfully!
+      </div>
+    }
+
+    <button
+      type="submit"
+      class="submit-button"
+      [disabled]="reportForm.invalid || loading()"
+    >
+      @if (loading()) {
+        <span class="button-spinner" aria-hidden="true"></span>
+        Generating…
+      } @else {
+        Generate PDF Report
+      }
+    </button>
+  </form>
+</div>
