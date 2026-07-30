@@ -2,7 +2,7 @@ import { Component, inject, OnInit, signal, computed, ChangeDetectionStrategy, o
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { Store } from '@ngrx/store';
-import { debounceTime, distinctUntilChanged, switchMap, tap, of, catchError, take } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap, tap, of, catchError, take, Subject, takeUntil, finalize } from 'rxjs';
 import { ApiService, SearchResult } from '../../services/api/api';
 import { loadSearchQueries, addSearchQuery } from '../../store/search-queries/search-queries.actions';
 import { selectRecentSearchQueries } from '../../store/search-queries/search-queries.selectors';
@@ -40,8 +40,10 @@ export class SearchComponent implements OnInit {
   selectedResult = signal<SearchResult | null>(null);
   showDialog = signal(false);
 
-  private searchCache = new Map<string, { results: SearchResult[]; total: number }>();
-  private currentSearch$ = of<SearchResult[]>([]);
+  private searchCache = new Map<string, { results: SearchResult[]; total: number; timestamp: number }>();
+  private readonly CACHE_TTL = 5 * 60 * 1000;
+  private readonly CACHE_MAX = 20;
+  private cancelLoadMore$ = new Subject<void>();
 
   ngOnInit() {
     this.store.dispatch(loadSearchQueries());
@@ -53,7 +55,9 @@ export class SearchComponent implements OnInit {
         this.showSuggestions.set(!!query && query.length >= 2);
         this.updateSuggestions(query || '');
         
-        // Reset pagination when query changes
+        // Cancel any in-flight loadMore request on query change
+        this.cancelLoadMore$.next();
+        
         if (query !== this.currentQuery()) {
           this.currentQuery.set(query || '');
           this.currentSkip.set(0);
@@ -65,6 +69,7 @@ export class SearchComponent implements OnInit {
       switchMap((query) => {
         if (!query || query.length < 2) {
           this.searchResults.set([]);
+          this.loading.set(false);
           return of([]);
         }
 
@@ -77,17 +82,25 @@ export class SearchComponent implements OnInit {
         // Check cache first
         const cached = this.searchCache.get(queryLower);
         if (cached && skip === 0) {
-          this.loading.set(false);
-          this.searchResults.set(cached.results);
-          this.totalResults.set(cached.total);
-          this.hasMore.set(cached.results.length < cached.total);
-          return of(cached.results);
+          if (Date.now() - cached.timestamp > this.CACHE_TTL) {
+            this.searchCache.delete(queryLower);
+          } else {
+            this.loading.set(false);
+            this.searchResults.set(cached.results);
+            this.totalResults.set(cached.total);
+            this.hasMore.set(cached.results.length < cached.total);
+            return of(cached.results);
+          }
         }
 
         return this.apiService.search(query, skip, 20).pipe(
           tap((response) => {
             if (skip === 0) {
-              this.searchCache.set(queryLower, { results: response.products, total: response.total });
+              if (this.searchCache.size >= this.CACHE_MAX) {
+                const oldest = this.searchCache.keys().next().value;
+                if (oldest !== undefined) this.searchCache.delete(oldest);
+              }
+              this.searchCache.set(queryLower, { results: response.products, total: response.total, timestamp: Date.now() });
               this.searchResults.set(response.products);
             } else {
               this.searchResults.update(results => [...results, ...response.products]);
@@ -124,6 +137,7 @@ export class SearchComponent implements OnInit {
       this.loading.set(true);
       
       this.apiService.search(this.currentQuery(), this.currentSkip(), 20).pipe(
+        takeUntil(this.cancelLoadMore$),
         tap((response) => {
           this.searchResults.update(results => [...results, ...response.products]);
           this.hasMore.set(this.searchResults().length < this.totalResults());
@@ -133,6 +147,9 @@ export class SearchComponent implements OnInit {
           this.error.set('Failed to load more results. Please try again.');
           this.loading.set(false);
           return of([]);
+        }),
+        finalize(() => {
+          this.loading.set(false);
         })
       ).subscribe();
     }
