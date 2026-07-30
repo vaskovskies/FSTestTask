@@ -35,7 +35,7 @@ func InitConfig() *Config {
 	v.SetDefault("PORT", "8080")
 	v.SetDefault("GRPC_PORT", "50052")
 	v.SetDefault("MONGO_URI", "mongodb://root:examplesecret@localhost:27017/lumana_db?authSource=admin")
-	v.SetDefault("MONGO_DB_NAME", "lumana_db")
+	v.SetDefault("MONGO_DB_NAME", "lumana_service_b")
 	v.SetDefault("REDIS_HOST", "localhost")
 	v.SetDefault("REDIS_PORT", "6379")
 	v.SetDefault("MIGRATIONS_PATH", "migrations")
@@ -56,6 +56,19 @@ func InitConfig() *Config {
 	}
 
 	Cfg = &c
+
+	required := map[string]string{
+		"MONGO_URI":    Cfg.MongoURI,
+		"MONGO_DB_NAME": Cfg.MongoDBName,
+		"REDIS_HOST":   Cfg.RedisHost,
+		"REDIS_PORT":   Cfg.RedisPort,
+	}
+	for name, val := range required {
+		if val == "" {
+			log.Fatalf("[Config] Missing required configuration: %s", name)
+		}
+	}
+
 	log.Printf("[Config] Service B Configuration initialized (Port: %s, GRPCPort: %s, MongoURI: %s)\n", Cfg.Port, Cfg.GRPCPort, RedactMongoURI(Cfg.MongoURI))
 	return Cfg
 }
