@@ -33,6 +33,8 @@ export class CanvasRenderer {
 
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
+    canvas.style.width = `${canvasWidth}px`;
+    canvas.style.height = `${canvasHeight}px`;
 
     return canvasWidth / image.width;
   }
