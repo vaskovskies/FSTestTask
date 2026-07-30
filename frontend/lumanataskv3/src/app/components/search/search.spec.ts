@@ -1,17 +1,19 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideStore } from '@ngrx/store';
 
-import { Search } from './search';
+import { SearchComponent } from './search';
 
-describe('Search', () => {
-  let component: Search;
-  let fixture: ComponentFixture<Search>;
+describe('SearchComponent', () => {
+  let component: SearchComponent;
+  let fixture: ComponentFixture<SearchComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [Search],
+      imports: [SearchComponent],
+      providers: [provideStore()],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(Search);
+    fixture = TestBed.createComponent(SearchComponent);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

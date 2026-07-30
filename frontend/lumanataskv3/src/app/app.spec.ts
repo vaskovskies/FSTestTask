@@ -1,10 +1,12 @@
 import { TestBed } from '@angular/core/testing';
+import { provideStore } from '@ngrx/store';
 import { App } from './app';
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
+      providers: [provideStore()],
     }).compileComponents();
   });
 
@@ -18,6 +20,6 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, lumana-task-v3');
+    expect(compiled.querySelector('h1')?.textContent).toContain('Product Search');
   });
 });

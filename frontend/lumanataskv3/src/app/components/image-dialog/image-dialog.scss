@@ -99,6 +99,7 @@
 }
 
 .canvas-container {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -117,6 +118,10 @@
 
   &:not(.draw-mode) {
     cursor: pointer;
+  }
+
+  &.hidden {
+    display: none;
   }
 }
 

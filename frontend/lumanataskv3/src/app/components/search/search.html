@@ -47,42 +47,16 @@
   @if (searchResults().length > 0) {
     <div class="results-info">
       <span class="results-count">{{ searchResults().length }} of {{ totalResults() }} results</span>
-      @if (hasMore()) {
-        <button (click)="loadMore()" class="load-more-button" [disabled]="loading()">
-          @if (loading()) {
-            <span>Loading...</span>
-          } @else {
-            <span>Load More</span>
-          }
-        </button>
+      @if (loading()) {
+        <span class="loading-indicator">Loading...</span>
       }
     </div>
-    
-    <div class="results-list">
-      @for (result of searchResults(); track result.id) {
-        <div
-          (click)="selectResult(result)"
-          class="result-item"
-          role="button"
-          tabindex="0"
-        >
-          <img
-            [src]="result.thumbnail"
-            [alt]="result.title"
-            class="result-thumbnail"
-            loading="lazy"
-          />
-          <div class="result-info">
-            <h3 class="result-title">{{ result.title }}</h3>
-            <p class="result-description">{{ result.description }}</p>
-            <div class="result-meta">
-              <span class="result-price">${{ result.price }}</span>
-              <span class="result-rating">★ {{ result.rating }}</span>
-            </div>
-          </div>
-        </div>
-      }
-    </div>
+
+    <app-virtual-scroller
+      [items]="searchResults()"
+      (itemSelected)="selectResult($event)"
+      (loadMore)="loadMore()"
+    />
   }
 
   @if (showDialog() && selectedResult()) {

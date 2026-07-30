@@ -1,17 +1,19 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideStore } from '@ngrx/store';
 
-import { ImageDialog } from './image-dialog';
+import { ImageDialogComponent } from './image-dialog';
 
-describe('ImageDialog', () => {
-  let component: ImageDialog;
-  let fixture: ComponentFixture<ImageDialog>;
+describe('ImageDialogComponent', () => {
+  let component: ImageDialogComponent;
+  let fixture: ComponentFixture<ImageDialogComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ImageDialog],
+      imports: [ImageDialogComponent],
+      providers: [provideStore()],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(ImageDialog);
+    fixture = TestBed.createComponent(ImageDialogComponent);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

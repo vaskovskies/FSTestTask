@@ -10,9 +10,10 @@
   display: flex;
   gap: 16px;
   padding: 16px;
-  border-bottom: 1px solid #e0e0e0;
+  background: #fff;
+  border-bottom: 1px solid #eee;
   cursor: pointer;
-  transition: background-color 0.2s, box-shadow 0.2s;
+  transition: background-color 0.2s;
   height: 120px;
   box-sizing: border-box;
 

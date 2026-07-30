@@ -8,11 +8,12 @@ import { loadSearchQueries, addSearchQuery } from '../../store/search-queries/se
 import { selectRecentSearchQueries } from '../../store/search-queries/search-queries.selectors';
 import { SearchQuery } from '../../models/search-query';
 import { ImageDialogComponent } from '../image-dialog/image-dialog';
+import { VirtualScrollerComponent } from '../virtual-scroller/virtual-scroller';
 
 @Component({
   selector: 'app-search',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ImageDialogComponent],
+  imports: [CommonModule, ReactiveFormsModule, ImageDialogComponent, VirtualScrollerComponent],
   templateUrl: './search.html',
   styleUrl: './search.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
