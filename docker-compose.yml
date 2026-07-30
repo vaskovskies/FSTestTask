@@ -85,6 +85,28 @@ services:
       redis:
         condition: service_healthy
 
+  service-b-nestjs:
+    build:
+      context: ./backend/services/service-b-nestjs
+      dockerfile: Dockerfile
+    container_name: lumana_service_b_nestjs
+    restart: always
+    env_file:
+      - .env
+    environment:
+      PORT: ${SERVICE_B_NESTJS_PORT}
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB_NAME: ${SERVICE_B_MONGO_DB_NAME}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+    ports:
+      - "${SERVICE_B_NESTJS_PORT}:${SERVICE_B_NESTJS_PORT}"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   mongo_data:
   redis_data:
