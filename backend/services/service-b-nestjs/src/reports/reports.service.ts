@@ -72,6 +72,7 @@ export class ReportsService {
       });
       doc.fillColor('#000000');
     } else {
+      doc.x = PAGE_MARGIN;
       for (let i = 0; i < allData.length; i++) {
         const data = allData[i];
         if (data.count < 2) {
@@ -149,6 +150,7 @@ export class ReportsService {
   private addSummaryTable(doc: typeof PDFDocument.prototype, allData: MetricData[]) {
     this.checkPageOverflow(doc, 200);
 
+    doc.x = PAGE_MARGIN;
     doc.fontSize(14);
     doc.font('Helvetica-Bold');
     doc.text('Metrics Summary', { align: 'left' });
@@ -199,6 +201,7 @@ export class ReportsService {
   }
 
   private addMetricSection(doc: typeof PDFDocument.prototype, def: MetricDef, data: MetricData) {
+    doc.x = PAGE_MARGIN;
     doc.fontSize(13);
     doc.font('Helvetica-Bold');
     doc.text(`Metric: ${def.label} (${def.key})`);
@@ -210,6 +213,7 @@ export class ReportsService {
   }
 
   private addMetricSectionNoData(doc: typeof PDFDocument.prototype, def: MetricDef) {
+    doc.x = PAGE_MARGIN;
     doc.fontSize(13);
     doc.font('Helvetica-Bold');
     doc.text(`Metric: ${def.label} (${def.key})`);
@@ -282,6 +286,7 @@ export class ReportsService {
       doc.text(label, x, barAreaBottom + 5, { width: 24, align: 'center' });
     }
 
+    doc.x = PAGE_MARGIN;
     doc.y = barAreaBottom + 25;
   }
 
@@ -293,6 +298,7 @@ export class ReportsService {
   private addFooter(doc: typeof PDFDocument.prototype) {
     this.checkPageOverflow(doc, 40);
     this.drawLine(doc, 0.5);
+    doc.x = PAGE_MARGIN;
     doc.fontSize(9);
     doc.font('Helvetica');
     doc.text('Report verified and automatically compiled by Service B (NestJS)', { align: 'left' });
