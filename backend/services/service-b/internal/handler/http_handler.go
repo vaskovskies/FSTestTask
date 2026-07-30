@@ -135,21 +135,19 @@ func (h *HTTPHandler) GetLogs(c *gin.Context) {
 
 // GeneratePDFReport godoc
 // @Summary      Generate PDF report
-// @Description  Generate a PDF report from Redis TimeSeries data for a given metric and time range
+// @Description  Generate a PDF report from all Redis TimeSeries metrics for a given time range
 // @Tags         reports
 // @Produce      application/pdf
-// @Param        metric  query  string  false  "Redis TimeSeries metric key"  default(ts:search_queries)
 // @Param        start   query  int64   false  "Start timestamp in milliseconds (defaults to 24h ago)"
 // @Param        end     query  int64   false  "End timestamp in milliseconds (defaults to now)"
 // @Success      200  {file}    binary
 // @Failure      500  {object}  map[string]string
 // @Router       /reports/pdf [get]
 func (h *HTTPHandler) GeneratePDFReport(c *gin.Context) {
-	metric := c.DefaultQuery("metric", "ts:search_queries")
 	startTs, _ := strconv.ParseInt(c.Query("start"), 10, 64)
 	endTs, _ := strconv.ParseInt(c.Query("end"), 10, 64)
 
-	pdfBytes, filename, err := h.reportService.GenerateTimeSeriesPDFReport(c.Request.Context(), metric, startTs, endTs)
+	pdfBytes, filename, err := h.reportService.GenerateTimeSeriesPDFReport(c.Request.Context(), startTs, endTs)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

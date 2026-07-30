@@ -22,13 +22,12 @@ export class ServiceBClient implements OnModuleInit {
   }
 
   async generateReport(
-    metricName: string,
     startTimestamp: number,
     endTimestamp: number,
   ): Promise<{ pdfContent: Buffer; filename: string }> {
     return new Promise((resolve, reject) => {
       this.client.generateReport(
-        { metricName, startTimestamp, endTimestamp } as GenerateReportRequest,
+        { startTimestamp, endTimestamp } as GenerateReportRequest,
         (error, response: GenerateReportResponse) => {
           if (error) {
             reject(error);

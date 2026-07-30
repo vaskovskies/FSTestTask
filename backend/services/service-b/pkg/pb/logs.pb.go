@@ -387,9 +387,8 @@ func (x *GetLogsResponse) GetLimit() int32 {
 
 type GenerateReportRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	MetricName     string                 `protobuf:"bytes,1,opt,name=metric_name,json=metricName,proto3" json:"metric_name,omitempty"`
-	StartTimestamp int64                  `protobuf:"varint,2,opt,name=start_timestamp,json=startTimestamp,proto3" json:"start_timestamp,omitempty"`
-	EndTimestamp   int64                  `protobuf:"varint,3,opt,name=end_timestamp,json=endTimestamp,proto3" json:"end_timestamp,omitempty"`
+	StartTimestamp int64                  `protobuf:"varint,1,opt,name=start_timestamp,json=startTimestamp,proto3" json:"start_timestamp,omitempty"`
+	EndTimestamp   int64                  `protobuf:"varint,2,opt,name=end_timestamp,json=endTimestamp,proto3" json:"end_timestamp,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -422,13 +421,6 @@ func (x *GenerateReportRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GenerateReportRequest.ProtoReflect.Descriptor instead.
 func (*GenerateReportRequest) Descriptor() ([]byte, []int) {
 	return file_logs_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *GenerateReportRequest) GetMetricName() string {
-	if x != nil {
-		return x.MetricName
-	}
-	return ""
 }
 
 func (x *GenerateReportRequest) GetStartTimestamp() int64 {
@@ -531,12 +523,10 @@ const file_logs_proto_rawDesc = "" +
 	"\x04logs\x18\x01 \x03(\v2\x0e.logs.LogEntryR\x04logs\x12\x14\n" +
 	"\x05total\x18\x02 \x01(\x03R\x05total\x12\x12\n" +
 	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x14\n" +
-	"\x05limit\x18\x04 \x01(\x05R\x05limit\"\x86\x01\n" +
-	"\x15GenerateReportRequest\x12\x1f\n" +
-	"\vmetric_name\x18\x01 \x01(\tR\n" +
-	"metricName\x12'\n" +
-	"\x0fstart_timestamp\x18\x02 \x01(\x03R\x0estartTimestamp\x12#\n" +
-	"\rend_timestamp\x18\x03 \x01(\x03R\fendTimestamp\"U\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\"e\n" +
+	"\x15GenerateReportRequest\x12'\n" +
+	"\x0fstart_timestamp\x18\x01 \x01(\x03R\x0estartTimestamp\x12#\n" +
+	"\rend_timestamp\x18\x02 \x01(\x03R\fendTimestamp\"U\n" +
 	"\x16GenerateReportResponse\x12\x1f\n" +
 	"\vpdf_content\x18\x01 \x01(\fR\n" +
 	"pdfContent\x12\x1a\n" +

@@ -60,7 +60,6 @@ export interface GetLogsResponse {
 }
 
 export interface GenerateReportRequest {
-  metricName: string;
   startTimestamp: number;
   endTimestamp: number;
 }
@@ -671,19 +670,16 @@ export const GetLogsResponse: MessageFns<GetLogsResponse> = {
 };
 
 function createBaseGenerateReportRequest(): GenerateReportRequest {
-  return { metricName: "", startTimestamp: 0, endTimestamp: 0 };
+  return { startTimestamp: 0, endTimestamp: 0 };
 }
 
 export const GenerateReportRequest: MessageFns<GenerateReportRequest> = {
   encode(message: GenerateReportRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.metricName !== "") {
-      writer.uint32(10).string(message.metricName);
-    }
     if (message.startTimestamp !== 0) {
-      writer.uint32(16).int64(message.startTimestamp);
+      writer.uint32(8).int64(message.startTimestamp);
     }
     if (message.endTimestamp !== 0) {
-      writer.uint32(24).int64(message.endTimestamp);
+      writer.uint32(16).int64(message.endTimestamp);
     }
     return writer;
   },
@@ -696,23 +692,15 @@ export const GenerateReportRequest: MessageFns<GenerateReportRequest> = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.metricName = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 16) {
+          if (tag !== 8) {
             break;
           }
 
           message.startTimestamp = longToNumber(reader.int64());
           continue;
         }
-        case 3: {
-          if (tag !== 24) {
+        case 2: {
+          if (tag !== 16) {
             break;
           }
 
@@ -730,11 +718,6 @@ export const GenerateReportRequest: MessageFns<GenerateReportRequest> = {
 
   fromJSON(object: any): GenerateReportRequest {
     return {
-      metricName: isSet(object.metricName)
-        ? globalThis.String(object.metricName)
-        : isSet(object.metric_name)
-        ? globalThis.String(object.metric_name)
-        : "",
       startTimestamp: isSet(object.startTimestamp)
         ? globalThis.Number(object.startTimestamp)
         : isSet(object.start_timestamp)
@@ -750,9 +733,6 @@ export const GenerateReportRequest: MessageFns<GenerateReportRequest> = {
 
   toJSON(message: GenerateReportRequest): unknown {
     const obj: any = {};
-    if (message.metricName !== "") {
-      obj.metricName = message.metricName;
-    }
     if (message.startTimestamp !== 0) {
       obj.startTimestamp = Math.round(message.startTimestamp);
     }
@@ -767,7 +747,6 @@ export const GenerateReportRequest: MessageFns<GenerateReportRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<GenerateReportRequest>, I>>(object: I): GenerateReportRequest {
     const message = createBaseGenerateReportRequest();
-    message.metricName = object.metricName ?? "";
     message.startTimestamp = object.startTimestamp ?? 0;
     message.endTimestamp = object.endTimestamp ?? 0;
     return message;

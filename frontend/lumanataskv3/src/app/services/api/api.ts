@@ -44,7 +44,6 @@ export class ApiService {
 
   generateReport(start: number, end: number): Observable<Blob> {
     const params = new HttpParams()
-      .set('metric', 'ts:search_queries')
       .set('start', start.toString())
       .set('end', end.toString());
 

@@ -49,9 +49,8 @@ message GetLogsResponse {
 }
 
 message GenerateReportRequest {
-  string metric_name = 1;
-  int64 start_timestamp = 2;
-  int64 end_timestamp = 3;
+  int64 start_timestamp = 1;
+  int64 end_timestamp = 2;
 }
 
 message GenerateReportResponse {

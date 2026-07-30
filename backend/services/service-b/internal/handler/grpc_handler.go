@@ -77,7 +77,7 @@ func (g *GRPCHandler) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.
 }
 
 func (g *GRPCHandler) GenerateReport(ctx context.Context, req *pb.GenerateReportRequest) (*pb.GenerateReportResponse, error) {
-	pdfBytes, filename, err := g.reportService.GenerateTimeSeriesPDFReport(ctx, req.MetricName, req.StartTimestamp, req.EndTimestamp)
+	pdfBytes, filename, err := g.reportService.GenerateTimeSeriesPDFReport(ctx, req.StartTimestamp, req.EndTimestamp)
 	if err != nil {
 		return nil, err
 	}

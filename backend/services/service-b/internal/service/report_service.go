@@ -7,6 +7,7 @@ import (
 	stdimage "image"
 	"image/color"
 	"image/png"
+	"math"
 	"strconv"
 	"time"
 
@@ -28,8 +29,33 @@ import (
 	"github.com/wcharczuk/go-chart/v2/drawing"
 )
 
+type metricDef struct {
+	Key       string
+	Label     string
+	Unit      string
+	ChartName string
+}
+
+var allMetrics = []metricDef{
+	{Key: "ts:api_fetch_count", Label: "API Fetch Count", Unit: "Products", ChartName: "API Fetched Products"},
+	{Key: "ts:products_ingested_count", Label: "Products Ingested Count", Unit: "Products", ChartName: "Products Ingested via File Import"},
+	{Key: "ts:search_queries", Label: "Search Queries", Unit: "Queries", ChartName: "Search Query Count"},
+	{Key: "ts:search_latency_ms", Label: "Search Latency", Unit: "ms", ChartName: "Search Latency (ms)"},
+}
+
+type metricData struct {
+	Def     metricDef
+	XValues []time.Time
+	YValues []float64
+	Total   float64
+	Avg     float64
+	Max     float64
+	Min     float64
+	Count   int
+}
+
 type ReportService interface {
-	GenerateTimeSeriesPDFReport(ctx context.Context, key string, startTs, endTs int64) ([]byte, string, error)
+	GenerateTimeSeriesPDFReport(ctx context.Context, startTs, endTs int64) ([]byte, string, error)
 }
 
 type reportService struct {
@@ -40,10 +66,7 @@ func NewReportService(rdb *redis.Client) ReportService {
 	return &reportService{rdb: rdb}
 }
 
-func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, key string, startTs, endTs int64) ([]byte, string, error) {
-	if key == "" {
-		key = "ts:search_queries"
-	}
+func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, startTs, endTs int64) ([]byte, string, error) {
 	if startTs <= 0 {
 		startTs = time.Now().Add(-24 * time.Hour).UnixMilli()
 	}
@@ -51,107 +74,57 @@ func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, key str
 		endTs = time.Now().UnixMilli()
 	}
 
-	// 1. Fetch RedisTimeSeries range data: TS.RANGE key startTs endTs
-	// 3600000 ms = 1 Hour. This groups all the 1s in that hour into a single spiked value.
-	res, err := s.rdb.Do(ctx, "TS.RANGE", key, startTs, endTs, "AGGREGATION", "SUM", 3600000).Result()
-	var xValues []time.Time
-	var yValues []float64
+	filename := fmt.Sprintf("report_%d.pdf", time.Now().Unix())
 
-	if err == nil && res != nil {
-		if rawSlice, ok := res.([]interface{}); ok {
-			for _, item := range rawSlice {
-				if tuple, ok := item.([]interface{}); ok && len(tuple) == 2 {
-					// Time Parsing
-					tsVal, _ := tuple[0].(int64)
+	var allData []metricData
+	hasData := false
 
-					// Safely parse the value whether Redis returns a string, []byte, or float
-					var valStr string
-					switch v := tuple[1].(type) {
-					case string:
-						valStr = v
-					case []byte:
-						valStr = string(v)
-					default:
-						valStr = fmt.Sprintf("%v", v)
-					}
-
-					valFloat, _ := strconv.ParseFloat(valStr, 64)
-
-					xValues = append(xValues, time.UnixMilli(tsVal))
-					yValues = append(yValues, valFloat)
-				}
-			}
+	for _, m := range allMetrics {
+		data := s.fetchMetricRange(ctx, m, startTs, endTs)
+		if data.Count > 0 {
+			hasData = true
 		}
-	}
-
-	filename := fmt.Sprintf("report_%s_%d.pdf", key, time.Now().Unix())
-
-	if len(xValues) < 2 {
-		return s.buildNoDataPDF(key, filename), filename, nil
-	}
-
-	// 2. Generate Chart PNG image using go-chart
-	graph := chart.Chart{
-		Title:  fmt.Sprintf("Metric Analytics: %s", key),
-		Width:  600,
-		Height: 300,
-		XAxis: chart.XAxis{
-			Name: "Time",
-			Style: chart.Style{
-				Hidden: false,
-			},
-			ValueFormatter: chart.TimeHourValueFormatter,
-		},
-		YAxis: chart.YAxis{
-			Name: "Value / Count",
-			Style: chart.Style{
-				Hidden: false,
-			},
-		},
-		Series: []chart.Series{
-			chart.TimeSeries{
-				Name:    key,
-				XValues: xValues,
-				YValues: yValues,
-				Style: chart.Style{
-					Hidden:      false,
-					StrokeWidth: 2.0,
-					StrokeColor: drawing.ColorBlue,
-					DotWidth:    4.0,
-					DotColor:    drawing.ColorBlack,
-				},
-			},
-		},
-	}
-
-	var chartBuffer bytes.Buffer
-	if err := graph.Render(chart.PNG, &chartBuffer); err != nil {
-		return nil, "", fmt.Errorf("chart rendering failed: %w", err)
-	}
-
-	if _, err := png.Decode(bytes.NewReader(chartBuffer.Bytes())); err != nil {
-		chartBuffer.Reset()
-		if err := png.Encode(&chartBuffer, s.placeholderImage()); err != nil {
-			return nil, "", fmt.Errorf("fallback chart image encoding failed: %w", err)
-		}
+		allData = append(allData, data)
 	}
 
 	cfg := config.NewBuilder().Build()
 	m := maroto.New(cfg)
 
-	s.addHeader(m, key)
-	s.addSummaryRow(m, len(yValues), key)
+	s.addHeader(m)
+	s.addSummaryTable(m, allData)
+	m.AddRows(line.NewRow(2, props.Line{Thickness: 0.5}))
 
-	m.AddRows(
-		row.New(100).Add(
-			col.New(12).Add(
-				image.NewFromBytes(chartBuffer.Bytes(), extension.Png, props.Rect{
-					Center:  true,
-					Percent: 95,
-				}),
+	if !hasData {
+		m.AddRows(
+			row.New(60).Add(
+				col.New(12).Add(
+					text.New("No Data Available for any metric in the selected time range", props.Text{
+						Size:  16,
+						Style: fontstyle.BoldItalic,
+						Align: align.Center,
+						Color: &props.Color{Red: 180, Green: 180, Blue: 180},
+					}),
+				),
 			),
-		),
-	)
+		)
+	} else {
+		for i, data := range allData {
+			if data.Count < 2 {
+				s.addMetricSectionNoData(m, data.Def)
+				continue
+			}
+
+			chartBytes := s.generateChart(data)
+			if chartBytes == nil {
+				chartBytes = s.encodePlaceholderImage()
+			}
+
+			s.addMetricSection(m, data.Def, chartBytes)
+			if i < len(allData)-1 {
+				m.AddRows(line.NewRow(2, props.Line{Thickness: 0.3, Color: &props.Color{Red: 200, Green: 200, Blue: 200}}))
+			}
+		}
+	}
 
 	s.addFooter(m)
 
@@ -163,36 +136,124 @@ func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, key str
 	return pdfDoc.GetBytes(), filename, nil
 }
 
-func (s *reportService) buildNoDataPDF(key, filename string) []byte {
-	cfg := config.NewBuilder().Build()
-	m := maroto.New(cfg)
+func (s *reportService) fetchMetricRange(ctx context.Context, def metricDef, startTs, endTs int64) metricData {
+	data := metricData{Def: def}
 
-	s.addHeader(m, key)
-	s.addSummaryRow(m, 0, key)
-
-	m.AddRows(
-		row.New(60).Add(
-			col.New(12).Add(
-				text.New("No Data Available", props.Text{
-					Size:  16,
-					Style: fontstyle.BoldItalic,
-					Align: align.Center,
-					Color: &props.Color{Red: 180, Green: 180, Blue: 180},
-				}),
-			),
-		),
-	)
-
-	s.addFooter(m)
-
-	pdfDoc, err := m.Generate()
-	if err != nil {
-		return nil
+	res, err := s.rdb.Do(ctx, "TS.RANGE", def.Key, startTs, endTs, "AGGREGATION", "SUM", 3600000).Result()
+	if err != nil || res == nil {
+		return data
 	}
-	return pdfDoc.GetBytes()
+
+	rawSlice, ok := res.([]interface{})
+	if !ok {
+		return data
+	}
+
+	var total float64
+	maxVal := -math.MaxFloat64
+	minVal := math.MaxFloat64
+
+	for _, item := range rawSlice {
+		tuple, ok := item.([]interface{})
+		if !ok || len(tuple) != 2 {
+			continue
+		}
+
+		tsVal, _ := tuple[0].(int64)
+		var valStr string
+		switch v := tuple[1].(type) {
+		case string:
+			valStr = v
+		case []byte:
+			valStr = string(v)
+		default:
+			valStr = fmt.Sprintf("%v", v)
+		}
+
+		valFloat, _ := strconv.ParseFloat(valStr, 64)
+
+		data.XValues = append(data.XValues, time.UnixMilli(tsVal))
+		data.YValues = append(data.YValues, valFloat)
+		total += valFloat
+		if valFloat > maxVal {
+			maxVal = valFloat
+		}
+		if valFloat < minVal {
+			minVal = valFloat
+		}
+	}
+
+	data.Total = total
+	data.Count = len(data.YValues)
+	if data.Count > 0 {
+		data.Avg = total / float64(data.Count)
+		data.Max = maxVal
+		data.Min = minVal
+	}
+
+	return data
 }
 
-func (s *reportService) addHeader(m core.Maroto, key string) {
+func (s *reportService) generateChart(data metricData) []byte {
+	graph := chart.Chart{
+		Title:  data.Def.ChartName,
+		Width:  600,
+		Height: 300,
+		XAxis: chart.XAxis{
+			Name: "Time",
+			Style: chart.Style{
+				Hidden: false,
+			},
+			ValueFormatter: chart.TimeHourValueFormatter,
+		},
+		YAxis: chart.YAxis{
+			Name: data.Def.Unit,
+			Style: chart.Style{
+				Hidden: false,
+			},
+		},
+		Series: []chart.Series{
+			chart.TimeSeries{
+				Name:    data.Def.Label,
+				XValues: data.XValues,
+				YValues: data.YValues,
+				Style: chart.Style{
+					Hidden:      false,
+					StrokeWidth: 2.0,
+					StrokeColor: drawing.ColorBlue,
+					DotWidth:    4.0,
+					DotColor:    drawing.ColorBlack,
+				},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := graph.Render(chart.PNG, &buf); err != nil {
+		return nil
+	}
+
+	if _, err := png.Decode(bytes.NewReader(buf.Bytes())); err != nil {
+		return nil
+	}
+
+	return buf.Bytes()
+}
+
+func (s *reportService) encodePlaceholderImage() []byte {
+	img := stdimage.NewRGBA(stdimage.Rect(0, 0, 600, 300))
+	bg := color.RGBA{250, 235, 215, 255}
+	for x := 0; x < 600; x++ {
+		for y := 0; y < 300; y++ {
+			img.Set(x, y, bg)
+		}
+	}
+	var buf bytes.Buffer
+	png.Encode(&buf, img)
+	return buf.Bytes()
+}
+
+func (s *reportService) addHeader(m core.Maroto) {
 	m.AddRows(
 		row.New(25).Add(
 			col.New(12).Add(
@@ -205,7 +266,7 @@ func (s *reportService) addHeader(m core.Maroto, key string) {
 		),
 		row.New(10).Add(
 			col.New(12).Add(
-				text.New(fmt.Sprintf("Generated At: %s | Target Key: %s", time.Now().Format(time.RFC1123), key), props.Text{
+				text.New(fmt.Sprintf("Generated At: %s | All Metrics", time.Now().Format(time.RFC1123)), props.Text{
 					Size:  10,
 					Align: align.Center,
 				}),
@@ -215,17 +276,92 @@ func (s *reportService) addHeader(m core.Maroto, key string) {
 	)
 }
 
-func (s *reportService) addSummaryRow(m core.Maroto, sampleCount int, key string) {
+func (s *reportService) addSummaryTable(m core.Maroto, allData []metricData) {
+	m.AddRows(
+		row.New(12).Add(
+			col.New(12).Add(
+				text.New("Metrics Summary", props.Text{Size: 14, Style: fontstyle.Bold, Align: align.Left}),
+			),
+		),
+		row.New(10).Add(
+			col.New(3).Add(text.New("Metric", props.Text{Size: 9, Style: fontstyle.Bold})),
+			col.New(2).Add(text.New("Samples", props.Text{Size: 9, Style: fontstyle.Bold, Align: align.Center})),
+			col.New(2).Add(text.New("Total", props.Text{Size: 9, Style: fontstyle.Bold, Align: align.Center})),
+			col.New(2).Add(text.New("Avg", props.Text{Size: 9, Style: fontstyle.Bold, Align: align.Center})),
+			col.New(1).Add(text.New("Max", props.Text{Size: 9, Style: fontstyle.Bold, Align: align.Center})),
+			col.New(2).Add(text.New("Min", props.Text{Size: 9, Style: fontstyle.Bold, Align: align.Center})),
+		),
+	)
+	m.AddRows(line.NewRow(1, props.Line{Thickness: 0.5}))
+
+	for _, data := range allData {
+		samples := fmt.Sprintf("%d", data.Count)
+		total := fmt.Sprintf("%.1f", data.Total)
+		avg := fmt.Sprintf("%.2f", data.Avg)
+		maxStr := fmt.Sprintf("%.1f", data.Max)
+		minStr := fmt.Sprintf("%.1f", data.Min)
+		if data.Count == 0 {
+			samples = "0"
+			total = "-"
+			avg = "-"
+			maxStr = "-"
+			minStr = "-"
+		}
+
+		m.AddRows(
+			row.New(8).Add(
+				col.New(3).Add(text.New(data.Def.Label, props.Text{Size: 8})),
+				col.New(2).Add(text.New(samples, props.Text{Size: 8, Align: align.Center})),
+				col.New(2).Add(text.New(total, props.Text{Size: 8, Align: align.Center})),
+				col.New(2).Add(text.New(avg, props.Text{Size: 8, Align: align.Center})),
+				col.New(1).Add(text.New(maxStr, props.Text{Size: 8, Align: align.Center})),
+				col.New(2).Add(text.New(minStr, props.Text{Size: 8, Align: align.Center})),
+			),
+		)
+	}
+
+	m.AddRows(line.NewRow(2, props.Line{Thickness: 0.5}))
+}
+
+func (s *reportService) addMetricSection(m core.Maroto, def metricDef, chartBytes []byte) {
 	m.AddRows(
 		row.New(15).Add(
-			col.New(4).Add(
-				text.New(fmt.Sprintf("Total Samples: %d", sampleCount), props.Text{Size: 11, Style: fontstyle.Bold}),
+			col.New(12).Add(
+				text.New(fmt.Sprintf("Metric: %s (%s)", def.Label, def.Key), props.Text{
+					Size:  13,
+					Style: fontstyle.Bold,
+				}),
 			),
-			col.New(4).Add(
-				text.New(fmt.Sprintf("Metric Target: %s", key), props.Text{Size: 11, Style: fontstyle.Bold}),
+		),
+		row.New(100).Add(
+			col.New(12).Add(
+				image.NewFromBytes(chartBytes, extension.Png, props.Rect{
+					Center:  true,
+					Percent: 95,
+				}),
 			),
-			col.New(4).Add(
-				text.New("Status: ACTIVE", props.Text{Size: 11, Style: fontstyle.Bold, Align: align.Right}),
+		),
+	)
+}
+
+func (s *reportService) addMetricSectionNoData(m core.Maroto, def metricDef) {
+	m.AddRows(
+		row.New(15).Add(
+			col.New(12).Add(
+				text.New(fmt.Sprintf("Metric: %s (%s)", def.Label, def.Key), props.Text{
+					Size:  13,
+					Style: fontstyle.Bold,
+				}),
+			),
+		),
+		row.New(60).Add(
+			col.New(12).Add(
+				text.New("No Data Available for this metric in the selected time range", props.Text{
+					Size:  14,
+					Style: fontstyle.BoldItalic,
+					Align: align.Center,
+					Color: &props.Color{Red: 180, Green: 180, Blue: 180},
+				}),
 			),
 		),
 	)
@@ -243,15 +379,4 @@ func (s *reportService) addFooter(m core.Maroto) {
 			),
 		),
 	)
-}
-
-func (s *reportService) placeholderImage() *stdimage.RGBA {
-	img := stdimage.NewRGBA(stdimage.Rect(0, 0, 600, 300))
-	bg := color.RGBA{250, 235, 215, 255}
-	for x := 0; x < 600; x++ {
-		for y := 0; y < 300; y++ {
-			img.Set(x, y, bg)
-		}
-	}
-	return img
 }
