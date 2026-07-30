@@ -7,10 +7,12 @@ import { ProductsRepository } from './products/products.repository';
 import { ProductsService } from './products/products.service';
 import { ProductsController } from './products/products.controller';
 import { HealthController } from './health/health.controller';
+import { ReportsController } from './reports/reports.controller';
+import { ServiceBModule } from './service-b/service-b.module';
 
 @Module({
-  imports: [AppConfigModule],
-  controllers: [ProductsController, HealthController],
+  imports: [AppConfigModule, ServiceBModule],
+  controllers: [ProductsController, HealthController, ReportsController],
   providers: [
     MongoService,
     RedisTimeSeriesService,

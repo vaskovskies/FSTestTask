@@ -36,4 +36,12 @@ export class AppConfigService {
   get redisPort(): number {
     return this.config.redisPort;
   }
+
+  get serviceBGrpcHost(): string {
+    return this.config.serviceBGrpcHost;
+  }
+
+  get serviceBGrpcPort(): number {
+    return this.config.serviceBGrpcPort;
+  }
 }
