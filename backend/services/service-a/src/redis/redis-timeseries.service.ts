@@ -58,20 +58,23 @@ export class RedisTimeSeriesService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Publish event payload to Redis Pub/Sub channel for Service B to consume
+   * Add an event to the Redis Stream for Service B consumers to read
    */
   async publishEvent(action: string, payload: Record<string, any>, level = 'INFO'): Promise<void> {
-    const event = {
-      service: 'Service-A',
-      action,
-      payload: JSON.stringify(payload),
-      level,
-      timestamp: Date.now(),
-    };
+    const timestamp = Date.now();
 
     try {
-      await this.client.publish('service_events', JSON.stringify(event));
-      this.logger.log(`Published event [${action}] to Redis channel service_events`);
+      await this.client.xadd(
+        'service_events',
+        'MAXLEN', '~', 100000,
+        '*',
+        'service', 'Service-A',
+        'action', action,
+        'payload', JSON.stringify(payload),
+        'level', level,
+        'timestamp', timestamp,
+      );
+      this.logger.log(`Published event [${action}] to Redis stream service_events`);
     } catch (err: any) {
       this.logger.error(`Failed to publish event [${action}]:`, err.message);
     }

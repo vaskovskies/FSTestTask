@@ -12,32 +12,30 @@ export class LogsService {
   ) {}
 
   async onModuleInit() {
-    await this.redisService.subscribe('service_events', (message) => {
-      try {
-        const payload = JSON.parse(message);
-        const svc = payload.service || '';
-        const act = payload.action || '';
-        const lvl = payload.level || 'INFO';
-        const body = payload.payload || '';
-        const ts = payload.timestamp
-          ? new Date(payload.timestamp)
+    this.redisService.subscribeToStream(
+      'service_events',
+      'service-b-nestjs-group',
+      'service-b-nestjs-1',
+      async (fields) => {
+        const svc = fields.service || '';
+        const act = fields.action || '';
+        const lvl = fields.level || 'INFO';
+        const body = fields.payload || '';
+        const ts = fields.timestamp
+          ? new Date(Number(fields.timestamp))
           : new Date();
 
-        this.logsRepository.insertLog({
+        await this.logsRepository.insertLog({
           service: svc,
           action: act,
           payload: typeof body === 'string' ? body : JSON.stringify(body),
           level: lvl,
           timestamp: ts,
-        }).then(() => {
-          this.logger.log(`Log stored from PubSub: action=${act}, service=${svc}`);
-        }).catch((err) => {
-          this.logger.error(`Failed to insert log from PubSub: ${err.message}`);
         });
-      } catch (err: any) {
-        this.logger.error(`Failed to parse PubSub message: ${err.message}`);
-      }
-    });
+
+        this.logger.log(`Log stored from stream: action=${act}, service=${svc}`);
+      },
+    );
   }
 
   async getLogs(filter: LogFilter) {

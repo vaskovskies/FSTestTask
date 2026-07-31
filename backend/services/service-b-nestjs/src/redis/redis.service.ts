@@ -92,16 +92,67 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return { xValues, yValues };
   }
 
-  async subscribe(channel: string, callback: (message: string) => void): Promise<void> {
+  /**
+   * Read events from a Redis Stream via a consumer group and callback per message.
+   * Returns the consumer connection so callers can stop it on shutdown.
+   */
+  subscribeToStream(
+    stream: string,
+    group: string,
+    consumer: string,
+    callback: (fields: Record<string, string>) => Promise<void> | void,
+  ): Redis {
     const subscriber = this.client.duplicate();
 
-    subscriber.on('message', (ch, message) => {
-      if (ch === channel) {
-        callback(message);
+    subscriber.on('error', (err) => this.logger.error(`Stream consumer error: ${err.message}`));
+
+    subscriber.xgroup('CREATE', stream, group, '0', 'MKSTREAM').catch((err: any) => {
+      if (!err.message || !err.message.includes('BUSYGROUP')) {
+        this.logger.error(`Failed to create stream group ${group}: ${err.message}`);
       }
     });
 
-    await subscriber.subscribe(channel);
-    this.logger.log(`Subscribed to Redis Pub/Sub channel: ${channel}`);
+    this.logger.log(`Started stream consumer: stream=${stream} group=${group} consumer=${consumer}`);
+
+    const readLoop = async (): Promise<void> => {
+      if (subscriber.status === 'end') return;
+
+      try {
+        const results: any = await subscriber.xreadgroup(
+          'GROUP', group, consumer,
+          'COUNT', 10,
+          'BLOCK', 5000,
+          'STREAMS', stream, '>',
+        );
+
+        if (!results) {
+          setTimeout(readLoop, 0);
+          return;
+        }
+
+        for (const item of results) {
+          const messages: [string, string[]][] = item[1];
+          for (const [id, kv] of messages) {
+            const fields: Record<string, string> = {};
+            for (let i = 0; i < kv.length; i += 2) {
+              fields[kv[i]] = kv[i + 1];
+            }
+            try {
+              await callback(fields);
+              await subscriber.xack(stream, group, id);
+            } catch (err: any) {
+              this.logger.error(`Failed to process stream message ${id}: ${err.message}`);
+            }
+          }
+        }
+        setTimeout(readLoop, 0);
+      } catch (err: any) {
+        this.logger.error(`Stream read error: ${err.message}`);
+        setTimeout(readLoop, 1000);
+      }
+    };
+
+    readLoop();
+    return subscriber;
   }
 }

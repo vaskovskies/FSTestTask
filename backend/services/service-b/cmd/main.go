@@ -92,8 +92,8 @@ func main() {
 	logService := service.NewLogService(logRepo)
 	reportService := service.NewReportService(rdb)
 
-	// 6. Start Background Pub/Sub Subscriber
-	logService.StartPubSubSubscriber(ctx, rdb)
+	// 6. Start Background Stream Consumer
+	logService.StartStreamConsumer(ctx, rdb)
 
 	// 7. Setup HTTP REST Server (Gin)
 	gin.SetMode(gin.ReleaseMode)
