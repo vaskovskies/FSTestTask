@@ -17,22 +17,27 @@ const docTemplate = `{
     "paths": {
         "/health": {
             "get": {
-                "description": "Returns the health status of the service",
+                "description": "Returns the health status of the service with Mongo and Redis dependency pings",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "health"
                 ],
-                "summary": "Health check",
+                "summary": "Deep health check",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -135,7 +140,7 @@ const docTemplate = `{
         },
         "/reports/pdf": {
             "get": {
-                "description": "Generate a PDF report from Redis TimeSeries data for a given metric and time range",
+                "description": "Generate a PDF report from all Redis TimeSeries metrics for a given time range",
                 "produces": [
                     "application/pdf"
                 ],
@@ -144,13 +149,6 @@ const docTemplate = `{
                 ],
                 "summary": "Generate PDF report",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "default": "ts:search_queries",
-                        "description": "Redis TimeSeries metric key",
-                        "name": "metric",
-                        "in": "query"
-                    },
                     {
                         "type": "integer",
                         "format": "int64",
