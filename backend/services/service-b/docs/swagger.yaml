@@ -46,17 +46,22 @@ info:
 paths:
   /health:
     get:
-      description: Returns the health status of the service
+      description: Returns the health status of the service with Mongo and Redis dependency
+        pings
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
-      summary: Health check
+        "503":
+          description: Service Unavailable
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Deep health check
       tags:
       - health
   /logs:
@@ -127,14 +132,9 @@ paths:
       - logs
   /reports/pdf:
     get:
-      description: Generate a PDF report from Redis TimeSeries data for a given metric
-        and time range
+      description: Generate a PDF report from all Redis TimeSeries metrics for a given
+        time range
       parameters:
-      - default: ts:search_queries
-        description: Redis TimeSeries metric key
-        in: query
-        name: metric
-        type: string
       - description: Start timestamp in milliseconds (defaults to 24h ago)
         format: int64
         in: query
