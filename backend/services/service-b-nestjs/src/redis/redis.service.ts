@@ -58,6 +58,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     key: string,
     startTs: number,
     endTs: number,
+    aggregation: 'SUM' | 'AVG' | 'MIN' | 'MAX' = 'SUM',
   ): Promise<{ xValues: Date[]; yValues: number[] }> {
     const xValues: Date[] = [];
     const yValues: number[] = [];
@@ -69,7 +70,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         startTs,
         endTs,
         'AGGREGATION',
-        'SUM',
+        aggregation,
         3600000,
       );
 
