@@ -30,17 +30,18 @@ import (
 )
 
 type metricDef struct {
-	Key       string
-	Label     string
-	Unit      string
-	ChartName string
+	Key         string
+	Label       string
+	Unit        string
+	ChartName   string
+	Aggregation string
 }
 
 var allMetrics = []metricDef{
-	{Key: "ts:api_fetch_count", Label: "API Fetch Count", Unit: "Products", ChartName: "API Fetched Products"},
-	{Key: "ts:products_ingested_count", Label: "Products Ingested Count", Unit: "Products", ChartName: "Products Ingested via File Import"},
-	{Key: "ts:search_queries", Label: "Search Queries", Unit: "Queries", ChartName: "Search Query Count"},
-	{Key: "ts:search_latency_ms", Label: "Search Latency", Unit: "ms", ChartName: "Search Latency (ms)"},
+	{Key: "ts:api_fetch_count", Label: "API Fetch Count", Unit: "Products", ChartName: "API Fetched Products", Aggregation: "SUM"},
+	{Key: "ts:products_ingested_count", Label: "Products Ingested Count", Unit: "Products", ChartName: "Products Ingested via File Import", Aggregation: "SUM"},
+	{Key: "ts:search_queries", Label: "Search Queries", Unit: "Queries", ChartName: "Search Query Count", Aggregation: "SUM"},
+	{Key: "ts:search_latency_ms", Label: "Search Latency", Unit: "ms", ChartName: "Search Latency (ms)", Aggregation: "AVG"},
 }
 
 type metricData struct {
@@ -139,7 +140,7 @@ func (s *reportService) GenerateTimeSeriesPDFReport(ctx context.Context, startTs
 func (s *reportService) fetchMetricRange(ctx context.Context, def metricDef, startTs, endTs int64) metricData {
 	data := metricData{Def: def}
 
-	res, err := s.rdb.Do(ctx, "TS.RANGE", def.Key, startTs, endTs, "AGGREGATION", "SUM", 3600000).Result()
+	res, err := s.rdb.Do(ctx, "TS.RANGE", def.Key, startTs, endTs, "AGGREGATION", def.Aggregation, 3600000).Result()
 	if err != nil || res == nil {
 		return data
 	}

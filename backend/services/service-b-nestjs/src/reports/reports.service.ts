@@ -7,6 +7,7 @@ interface MetricDef {
   label: string;
   unit: string;
   chartName: string;
+  aggregation?: 'SUM' | 'AVG' | 'MIN' | 'MAX';
 }
 
 interface MetricData {
@@ -21,10 +22,10 @@ interface MetricData {
 }
 
 const ALL_METRICS: MetricDef[] = [
-  { key: 'ts:api_fetch_count', label: 'API Fetch Count', unit: 'Products', chartName: 'API Fetched Products' },
-  { key: 'ts:products_ingested_count', label: 'Products Ingested Count', unit: 'Products', chartName: 'Products Ingested via File Import' },
-  { key: 'ts:search_queries', label: 'Search Queries', unit: 'Queries', chartName: 'Search Query Count' },
-  { key: 'ts:search_latency_ms', label: 'Search Latency', unit: 'ms', chartName: 'Search Latency (ms)' },
+  { key: 'ts:api_fetch_count', label: 'API Fetch Count', unit: 'Products', chartName: 'API Fetched Products', aggregation: 'SUM' },
+  { key: 'ts:products_ingested_count', label: 'Products Ingested Count', unit: 'Products', chartName: 'Products Ingested via File Import', aggregation: 'SUM' },
+  { key: 'ts:search_queries', label: 'Search Queries', unit: 'Queries', chartName: 'Search Query Count', aggregation: 'SUM' },
+  { key: 'ts:search_latency_ms', label: 'Search Latency', unit: 'ms', chartName: 'Search Latency (ms)', aggregation: 'AVG' },
 ];
 
 const PAGE_MARGIN = 40;
@@ -105,7 +106,7 @@ export class ReportsService {
   }
 
   private async fetchMetric(def: MetricDef, startTs: number, endTs: number): Promise<MetricData> {
-    const { xValues, yValues } = await this.redisService.fetchTimeSeriesRange(def.key, startTs, endTs);
+    const { xValues, yValues } = await this.redisService.fetchTimeSeriesRange(def.key, startTs, endTs, def.aggregation || 'SUM');
 
     let total = 0;
     let maxVal = -Infinity;
